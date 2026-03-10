@@ -1,0 +1,3 @@
+- fix: correct ISS base calculation for compound service codes in TaxCalculationService
+- fix: handle concurrent cache invalidation on rule update in RedisConfig
+- fix: correct ISS base calculation for compound service codes in TaxCalculationService
