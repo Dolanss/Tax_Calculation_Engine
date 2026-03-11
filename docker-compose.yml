@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: taxengine-postgres
+    environment:
+      POSTGRES_DB: taxengine
+      POSTGRES_USER: taxuser
+      POSTGRES_PASSWORD: taxpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taxuser -d taxengine"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - taxengine-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: taxengine-redis
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - taxengine-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taxengine-app
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/taxengine
+      DB_USER: taxuser
+      DB_PASS: taxpass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      JWT_EXPIRATION_MS: 86400000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - taxengine-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  taxengine-net:
+    driver: bridge
